@@ -57,7 +57,7 @@ class Handler(BaseHTTPRequestHandler):
             response = []
             for lead in leads:
                 item = dict(lead.__dict__)
-                item["priority"] = lead.confidence if lead.priority == "A" else max(0, lead.confidence - 20 if lead.priority == "B" else lead.confidence - 40)
+                item["priority"] = min(100, round(lead.score * 0.65 + lead.confidence * 0.35))
                 item["tier"] = lead.priority
                 response.append(item)
             response.sort(key=lambda x: (x["priority"], x["confidence"], x["score"]), reverse=True)
