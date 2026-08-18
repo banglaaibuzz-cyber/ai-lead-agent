@@ -1,5 +1,6 @@
 import unittest
 
+from src.entity import company_key, normalize_company_name
 from src.lead_agent import analyze_text, root_name
 from src.lead_matching import match_offers, rank_lead
 from src.outreach import draft_outreach
@@ -32,6 +33,10 @@ class LeadAgentTests(unittest.TestCase):
         self.assertIn("24/7 service", draft["body"])
         self.assertIn("after-hours intake automation", draft["body"])
         self.assertIn("Example Co", draft["subject"])
+
+    def test_entity_normalization(self):
+        self.assertEqual(normalize_company_name("Example Company, LLC"), "example")
+        self.assertEqual(company_key("Example", "https://www.example.com/about"), "example.com")
 
     def test_root_name(self):
         self.assertEqual(root_name("https://www.example.com/about"), "example.com")
