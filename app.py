@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Tiny zero-dependency web UI for the AI Lead Agent."""
+"""Zero-dependency web UI for the AI Lead Agent."""
 from __future__ import annotations
 
 import json
-import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 from src.lead_agent import research_target
 
@@ -40,11 +39,14 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length) or b"{}")
-            target = str(payload.get("target", "")).strip()
-            results = int(payload.get("results", 5))
-            if not target:
-                raise ValueError("Enter an industry, niche, location, or company type.")
-            results = max(1, min(results, 8))
+            category = str(payload.get("category", "HVAC companies")).strip()
+            market = str(payload.get("market", "United States")).strip()
+            location = str(payload.get("location", "")).strip()
+            goal = str(payload.get("goal", "find businesses with operational problems and automation opportunities")).strip()
+            results = max(1, min(int(payload.get("results", 6)), 8))
+            if not category or not market:
+                raise ValueError("Category and market are required.")
+            target = f"{category} in {location + ', ' if location else ''}{market}. Goal: {goal}"
             leads = research_target(target, max_results=results, delay=0.6)
             body = json.dumps([lead.__dict__ for lead in leads], ensure_ascii=False).encode()
             self._send(200, "application/json; charset=utf-8", body)
