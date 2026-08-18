@@ -8,9 +8,10 @@
     body{font-family:system-ui,sans-serif;max-width:1100px;margin:40px auto;padding:0 18px;background:#f7f7f8;color:#171717}
     h1{margin-bottom:6px}.muted{color:#666}.card{background:white;border:1px solid #ddd;border-radius:14px;padding:20px;margin:18px 0;box-shadow:0 2px 8px #00000008}
     form{display:grid;grid-template-columns:1fr 1fr;gap:12px}input,select,button{font:inherit;padding:12px;border-radius:9px;border:1px solid #bbb}button{cursor:pointer;background:#171717;color:white;border-color:#171717;grid-column:1/-1}
-    .wide{grid-column:1/-1}.lead{border-top:1px solid #eee;padding:18px 0}.lead:first-child{border-top:0}.score{font-weight:700}.pill{display:inline-block;background:#eee;border-radius:999px;padding:4px 8px;margin:3px;font-size:13px}
+    .lead{border-top:1px solid #eee;padding:18px 0}.lead:first-child{border-top:0}.score{font-weight:700}.pill{display:inline-block;background:#eee;border-radius:999px;padding:4px 8px;margin:3px;font-size:13px}
+    .meta{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.badge{border:1px solid #ddd;border-radius:999px;padding:5px 9px;font-size:13px}.next{background:#f2f2f2;padding:10px;border-radius:9px}
     a{color:inherit}.error{color:#b00020}.loading{opacity:.65}.hint{font-size:13px;color:#666;margin:4px 0 0}
-    @media(max-width:700px){form{grid-template-columns:1fr}.wide{grid-column:auto}}
+    @media(max-width:700px){form{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -24,15 +25,15 @@
       <div><label>Research goal</label><input id="goal" value="find businesses with operational problems and automation opportunities"></div>
       <button id="go">Research leads</button>
     </form>
-    <p class="hint">The market is independent of your own location. The default pilot is HVAC in the United States.</p>
+    <p class="hint">The market is independent of your own location. Results are ranked conservatively: strong scores without enough evidence are not treated as top-priority leads.</p>
     <p id="status" class="muted"></p>
   </div>
   <div id="results"></div>
 <script>
 const form=document.querySelector('#form'), status=document.querySelector('#status'), results=document.querySelector('#results');
 form.addEventListener('submit',async e=>{e.preventDefault();results.innerHTML='';status.textContent='Researching public pages and operational signals…';form.classList.add('loading');
-  try{const r=await fetch('/api/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:document.querySelector('#category').value,market:document.querySelector('#market').value,location:document.querySelector('#location').value,goal:document.querySelector('#goal').value,results:6})});const data=await r.json();if(!r.ok)throw Error(data.error||'Research failed');status.textContent=`Found ${data.length} candidate leads.`;
-  results.innerHTML=data.map(l=>`<div class="card lead"><h2><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)}</a></h2><div class="score">Opportunity score: ${l.score}/100</div><p>${(l.opportunities||[]).map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</p><strong>Evidence</strong><ul>${(l.evidence||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="muted">Contact hint: <a href="${esc(l.contact_hint)}" target="_blank" rel="noopener">${esc(l.contact_hint)}</a></p></div>`).join('');
+  try{const r=await fetch('/api/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:document.querySelector('#category').value,market:document.querySelector('#market').value,location:document.querySelector('#location').value,goal:document.querySelector('#goal').value,results:6})});const data=await r.json();if(!r.ok)throw Error(data.error||'Research failed');status.textContent=`Found ${data.length} candidate leads, ranked by evidence and opportunity.`;
+  results.innerHTML=data.map(l=>`<div class="card lead"><h2><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)}</a></h2><div class="score">Priority: ${l.priority}/100 · Opportunity score: ${l.score}/100</div><div class="meta"><span class="badge">Tier ${esc(l.tier)}</span><span class="badge">Evidence confidence: ${l.confidence}/100</span></div><p>${(l.opportunities||[]).map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</p><strong>Why this lead matters</strong><ul>${(l.signals||[]).slice(0,5).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><strong>Evidence</strong><ul>${(l.evidence||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="next"><strong>Next action:</strong> ${esc(l.next_action)}</p><p class="muted">Contact hint: <a href="${esc(l.contact_hint)}" target="_blank" rel="noopener">${esc(l.contact_hint)}</a></p></div>`).join('');
   }catch(err){status.innerHTML=`<span class="error">${esc(err.message)}</span>`}finally{form.classList.remove('loading')}});
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 </script>
