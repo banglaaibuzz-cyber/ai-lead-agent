@@ -16,43 +16,19 @@ from urllib.parse import quote_plus, unquote, urljoin, urlparse
 from urllib.request import Request, urlopen
 
 try:
+    from .entity import canonical_domain
     from .lead_matching import match_offers, rank_lead
-except ImportError:  # direct execution: python src/lead_agent.py ...
+except ImportError:
+    from entity import canonical_domain
     from lead_matching import match_offers, rank_lead
 
 UA = "Mozilla/5.0 (compatible; AILeadAgent/0.3; +https://github.com/banglaaibuzz-cyber/ai-lead-agent)"
 
 PAIN_SIGNALS = {
-    "hiring": (8, "Hiring activity can indicate capacity or process pressure."), "manual": (9, "Manual work suggests an automation opportunity."),
-    "spreadsheet": (8, "Spreadsheet-heavy work can be a workflow opportunity."), "slow": (6, "Slow response or delivery language suggests an efficiency gap."),
-    "backlog": (7, "A backlog suggests unmet operational demand."), "growth": (7, "Growth can create new process, reporting, or automation needs."),
-    "expanding": (8, "Expansion often creates repeatable operational problems."), "new location": (7, "New locations create setup and coordination work."),
-    "multiple locations": (8, "Multiple locations can create coordination and reporting complexity."), "customer support": (8, "Support volume can create automation and knowledge-base opportunities."),
-    "lead generation": (7, "Lead-generation activity can create qualification and follow-up opportunities."), "recruiting": (7, "Recruiting activity can indicate repetitive screening and scheduling work."),
-    "booking": (6, "Booking workflows may be improved with automation."), "appointment": (6, "Appointment workflows may be improved with automation."),
-    "inventory": (6, "Inventory work can create monitoring and reporting opportunities."), "reporting": (6, "Reporting work can often be automated or streamlined."),
-    "integration": (8, "Integration language suggests disconnected systems."), "multiple systems": (9, "Multiple systems suggest integration or workflow opportunities."),
-    "api": (5, "API activity may indicate a system that can be connected or automated."), "24/7": (6, "24/7 service can create scheduling, routing, and after-hours workflow needs."),
-    "after hours": (7, "After-hours service can create missed-call and dispatch opportunities."), "emergency": (6, "Emergency service creates time-sensitive routing and communication needs."),
-    "same day": (6, "Same-day service creates scheduling and dispatch pressure."), "estimate": (6, "Estimate workflows can be streamlined with qualification and follow-up."),
-    "quote": (5, "Quote activity can create follow-up and conversion opportunities."), "dispatch": (9, "Dispatch activity suggests routing and scheduling complexity."),
-    "field service": (8, "Field-service operations often involve coordination and data handoffs."), "job management": (7, "Job-management activity can expose workflow and integration opportunities."),
-    "maintenance plan": (7, "Maintenance plans can benefit from recurring reminders and retention workflows."), "membership": (6, "Membership programs can create renewal and retention automation opportunities."),
-    "financing": (5, "Financing offers can create qualification and follow-up workflow needs."), "reviews": (4, "Review volume can indicate reputation-management and response workload."),
-    "service area": (5, "A broad service area can increase routing and scheduling complexity."), "fleet": (6, "Fleet operations can create monitoring and coordination needs."),
-    "technicians": (6, "A technician workforce creates scheduling and field-operations needs."), "seasonal": (6, "Seasonality can create forecasting, staffing, and demand-management pressure."),
-    "peak season": (7, "Peak-season language suggests temporary capacity and scheduling pressure."), "missed call": (9, "Missed calls can represent lost revenue and follow-up opportunities."),
-    "call volume": (7, "High call volume can create triage and response-time pressure."),
+    "hiring": (8, "Hiring activity can indicate capacity or process pressure."), "manual": (9, "Manual work suggests an automation opportunity."), "spreadsheet": (8, "Spreadsheet-heavy work can be a workflow opportunity."), "slow": (6, "Slow response or delivery language suggests an efficiency gap."), "backlog": (7, "A backlog suggests unmet operational demand."), "growth": (7, "Growth can create new process, reporting, or automation needs."), "expanding": (8, "Expansion often creates repeatable operational problems."), "new location": (7, "New locations create setup and coordination work."), "multiple locations": (8, "Multiple locations can create coordination and reporting complexity."), "customer support": (8, "Support volume can create automation and knowledge-base opportunities."), "lead generation": (7, "Lead-generation activity can create qualification and follow-up opportunities."), "recruiting": (7, "Recruiting activity can indicate repetitive screening and scheduling work."), "booking": (6, "Booking workflows may be improved with automation."), "appointment": (6, "Appointment workflows may be improved with automation."), "inventory": (6, "Inventory work can create monitoring and reporting opportunities."), "reporting": (6, "Reporting work can often be automated or streamlined."), "integration": (8, "Integration language suggests disconnected systems."), "multiple systems": (9, "Multiple systems suggest integration or workflow opportunities."), "api": (5, "API activity may indicate a system that can be connected or automated."), "24/7": (6, "24/7 service can create scheduling, routing, and after-hours workflow needs."), "after hours": (7, "After-hours service can create missed-call and dispatch opportunities."), "emergency": (6, "Emergency service creates time-sensitive routing and communication needs."), "same day": (6, "Same-day service creates scheduling and dispatch pressure."), "estimate": (6, "Estimate workflows can be streamlined with qualification and follow-up."), "quote": (5, "Quote activity can create follow-up and conversion opportunities."), "dispatch": (9, "Dispatch activity suggests routing and scheduling complexity."), "field service": (8, "Field-service operations often involve coordination and data handoffs."), "job management": (7, "Job-management activity can expose workflow and integration opportunities."), "maintenance plan": (7, "Maintenance plans can benefit from recurring reminders and retention workflows."), "membership": (6, "Membership programs can create renewal and retention automation opportunities."), "financing": (5, "Financing offers can create qualification and follow-up workflow needs."), "reviews": (4, "Review volume can indicate reputation-management and response workload."), "service area": (5, "A broad service area can increase routing and scheduling complexity."), "fleet": (6, "Fleet operations can create monitoring and coordination needs."), "technicians": (6, "A technician workforce creates scheduling and field-operations needs."), "seasonal": (6, "Seasonality can create forecasting, staffing, and demand-management pressure."), "peak season": (7, "Peak-season language suggests temporary capacity and scheduling pressure."), "missed call": (9, "Missed calls can represent lost revenue and follow-up opportunities."), "call volume": (7, "High call volume can create triage and response-time pressure."),
 }
 
-OFFER_MAP = {
-    "hiring": "candidate screening or recruiting workflow automation", "recruiting": "candidate screening or recruiting workflow automation", "manual": "workflow automation", "spreadsheet": "spreadsheet-to-dashboard/workflow automation",
-    "customer support": "support triage and knowledge-base automation", "lead generation": "lead qualification and follow-up automation", "booking": "booking and reminder automation", "appointment": "appointment and reminder automation", "reporting": "automated reporting/dashboarding",
-    "integration": "system integration or data synchronization", "multiple systems": "system integration or data synchronization", "inventory": "inventory monitoring/reporting automation", "growth": "operations automation and reporting", "expanding": "operations automation for scale", "multiple locations": "multi-location operations/reporting automation",
-    "24/7": "after-hours intake and routing automation", "after hours": "missed-call capture and follow-up automation", "emergency": "urgent lead triage and dispatch workflow automation", "same day": "scheduling and dispatch automation", "estimate": "estimate intake and follow-up automation", "quote": "quote follow-up and conversion automation",
-    "dispatch": "dispatch, routing, and scheduling automation", "field service": "field-service workflow and data synchronization", "job management": "job-management workflow integration", "maintenance plan": "maintenance reminder and retention automation", "membership": "membership renewal and retention automation", "financing": "financing-lead qualification and follow-up automation",
-    "reviews": "review monitoring and response workflow", "service area": "service-area routing and scheduling automation", "fleet": "fleet monitoring and operations reporting", "technicians": "technician scheduling and field operations automation", "seasonal": "seasonal demand forecasting and staffing workflow", "peak season": "peak-season intake, scheduling, and capacity automation", "missed call": "missed-call capture and instant follow-up automation", "call volume": "call triage and response automation",
-}
+OFFER_MAP = {"hiring": "candidate screening or recruiting workflow automation", "recruiting": "candidate screening or recruiting workflow automation", "manual": "workflow automation", "spreadsheet": "spreadsheet-to-dashboard/workflow automation", "customer support": "support triage and knowledge-base automation", "lead generation": "lead qualification and follow-up automation", "booking": "booking and reminder automation", "appointment": "appointment and reminder automation", "reporting": "automated reporting/dashboarding", "integration": "system integration or data synchronization", "multiple systems": "system integration or data synchronization", "inventory": "inventory monitoring/reporting automation", "growth": "operations automation and reporting", "expanding": "operations automation for scale", "multiple locations": "multi-location operations/reporting automation", "24/7": "after-hours intake and routing automation", "after hours": "missed-call capture and follow-up automation", "emergency": "urgent lead triage and dispatch workflow automation", "same day": "scheduling and dispatch automation", "estimate": "estimate intake and follow-up automation", "quote": "quote follow-up and conversion automation", "dispatch": "dispatch, routing, and scheduling automation", "field service": "field-service workflow and data synchronization", "job management": "job-management workflow integration", "maintenance plan": "maintenance reminder and retention automation", "membership": "membership renewal and retention automation", "financing": "financing-lead qualification and follow-up automation", "reviews": "review monitoring and response workflow", "service area": "service-area routing and scheduling automation", "fleet": "fleet monitoring and operations reporting", "technicians": "technician scheduling and field operations automation", "seasonal": "seasonal demand forecasting and staffing workflow", "peak season": "peak-season intake, scheduling, and capacity automation", "missed call": "missed-call capture and instant follow-up automation", "call volume": "call triage and response automation"}
 
 @dataclass
 class Lead:
@@ -99,7 +75,7 @@ def search_web(query: str, limit: int = 8) -> list[dict[str, str]]:
 
 
 def root_name(url: str) -> str:
-    return urlparse(url).netloc.lower().split(":")[0].removeprefix("www.")
+    return canonical_domain(url)
 
 
 def analyze_text(text: str) -> tuple[int, list[str], list[str], list[str]]:
@@ -114,12 +90,8 @@ def analyze_text(text: str) -> tuple[int, list[str], list[str], list[str]]:
 
 
 def research_target(target: str, max_results: int = 8, delay: float = 1.0) -> list[Lead]:
-    queries = [
-        f'"{target}" hiring OR recruiting OR careers', f'"{target}" manual OR spreadsheet OR automation OR integration',
-        f'"{target}" growth OR expanding OR "new location" OR "multiple locations"', f'"{target}" "customer support" OR "lead generation" OR booking OR appointment',
-        f'"{target}" dispatch OR "field service" OR technicians OR "job management"', f'"{target}" "after hours" OR emergency OR "same day" OR "missed call"',
-        f'"{target}" estimate OR quote OR "maintenance plan" OR membership OR financing', f'"{target}" seasonal OR "peak season" OR "call volume" OR fleet',
-    ]; leads: dict[str, Lead] = {}
+    queries = [f'"{target}" hiring OR recruiting OR careers', f'"{target}" manual OR spreadsheet OR automation OR integration', f'"{target}" growth OR expanding OR "new location" OR "multiple locations"', f'"{target}" "customer support" OR "lead generation" OR booking OR appointment', f'"{target}" dispatch OR "field service" OR technicians OR "job management"', f'"{target}" "after hours" OR emergency OR "same day" OR "missed call"', f'"{target}" estimate OR quote OR "maintenance plan" OR membership OR financing', f'"{target}" seasonal OR "peak season" OR "call volume" OR fleet']
+    leads: dict[str, Lead] = {}
     for query in queries:
         try: results = search_web(query, max_results)
         except Exception as exc: print(f"Search failed for {query!r}: {exc}", file=sys.stderr); continue
@@ -176,8 +148,7 @@ def save_csv(leads: Iterable[Lead], path: Path) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Zero-cost global B2B lead research agent")
-    p.add_argument("target", nargs="+", help="industry, niche, market, location, or company type to research")
-    p.add_argument("--results", type=int, default=6); p.add_argument("--delay", type=float, default=1.0); p.add_argument("--ollama", action="store_true"); p.add_argument("--model", default="llama3.2:3b"); p.add_argument("--out", default="data/leads")
+    p.add_argument("target", nargs="+", help="industry, niche, market, location, or company type to research"); p.add_argument("--results", type=int, default=6); p.add_argument("--delay", type=float, default=1.0); p.add_argument("--ollama", action="store_true"); p.add_argument("--model", default="llama3.2:3b"); p.add_argument("--out", default="data/leads")
     args = p.parse_args(); leads = []
     for target in args.target: print(f"Researching: {target}"); leads.extend(research_target(target, args.results, args.delay))
     if args.ollama: ollama_enrich(leads, args.model)
