@@ -18,9 +18,11 @@ The market is configurable and is **not tied to the operator's location**. The U
 5. Scores evidence-based opportunity signals.
 6. Maps signals to practical automation/service opportunities.
 7. Captures short evidence snippets so claims can be reviewed before outreach.
-8. Saves results as JSON and CSV.
-9. Provides a zero-dependency local browser UI through `app.py`.
-10. Can optionally use a locally running Ollama model for deeper analysis, keeping the LLM portion free of API charges.
+8. Applies a separate quality layer that combines signal strength, evidence depth, and opportunity count into a conservative priority tier (A/B/C).
+9. Saves results as JSON and CSV.
+10. Provides a zero-dependency local browser UI through `app.py`.
+11. Can optionally use a locally running Ollama model for deeper analysis, keeping the LLM portion free of API charges.
+12. Runs automated Python tests and compilation checks through GitHub Actions.
 
 ## Run the browser UI
 
@@ -68,6 +70,6 @@ The agent degrades gracefully when local AI is unavailable; the deterministic ev
 
 ## Project status
 
-**MVP foundation complete:** research, global market targeting, broader situation-signal detection, scoring, opportunity mapping, evidence capture, CSV/JSON export, local web UI, and optional local-LLM enrichment.
+**Foundation complete:** research, global market targeting, broader situation-signal detection, scoring, opportunity mapping, evidence capture, conservative quality ranking, CSV/JSON export, local web UI, optional local-LLM enrichment, and automated tests.
 
-Next implementation layers are stronger source diversity, deduplication/entity resolution, configurable scoring, lead-quality/conversion scoring, buyer/service-provider matching, and an evidence-grounded outreach workflow.
+**Still being built before final release:** stronger source diversity, better entity resolution/deduplication, configurable scoring, buyer/service-provider matching, and an evidence-grounded outreach workflow.
