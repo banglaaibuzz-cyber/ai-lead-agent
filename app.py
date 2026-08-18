@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from src.lead_agent import research_target
+from src.quality import assess
 
 ROOT = Path(__file__).resolve().parent
 INDEX = ROOT / "web" / "index.html"
@@ -48,7 +49,22 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError("Category and market are required.")
             target = f"{category} in {location + ', ' if location else ''}{market}. Goal: {goal}"
             leads = research_target(target, max_results=results, delay=0.6)
-            body = json.dumps([lead.__dict__ for lead in leads], ensure_ascii=False).encode()
+            response = []
+            for lead in leads:
+                item = dict(lead.__dict__)
+                quality = assess(
+                    score=lead.score,
+                    evidence=lead.evidence,
+                    opportunities=lead.opportunities,
+                    url=lead.url,
+                )
+                item["priority"] = quality.priority
+                item["confidence"] = quality.confidence
+                item["tier"] = quality.tier
+                item["next_action"] = quality.next_action
+                response.append(item)
+            response.sort(key=lambda x: (x["priority"], x["score"]), reverse=True)
+            body = json.dumps(response, ensure_ascii=False).encode()
             self._send(200, "application/json; charset=utf-8", body)
         except Exception as exc:
             body = json.dumps({"error": str(exc)}).encode()
