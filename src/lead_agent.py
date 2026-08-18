@@ -22,7 +22,7 @@ except ImportError:
     from entity import canonical_domain
     from lead_matching import match_offers, rank_lead
 
-UA = "Mozilla/5.0 (compatible; AILeadAgent/0.3; +https://github.com/banglaaibuzz-cyber/ai-lead-agent)"
+UA = "Mozilla/5.0 (compatible; AILeadAgent/0.4; +https://github.com/banglaaibuzz-cyber/ai-lead-agent)"
 
 PAIN_SIGNALS = {
     "hiring": (8, "Hiring activity can indicate capacity or process pressure."), "manual": (9, "Manual work suggests an automation opportunity."), "spreadsheet": (8, "Spreadsheet-heavy work can be a workflow opportunity."), "slow": (6, "Slow response or delivery language suggests an efficiency gap."), "backlog": (7, "A backlog suggests unmet operational demand."), "growth": (7, "Growth can create new process, reporting, or automation needs."), "expanding": (8, "Expansion often creates repeatable operational problems."), "new location": (7, "New locations create setup and coordination work."), "multiple locations": (8, "Multiple locations can create coordination and reporting complexity."), "customer support": (8, "Support volume can create automation and knowledge-base opportunities."), "lead generation": (7, "Lead-generation activity can create qualification and follow-up opportunities."), "recruiting": (7, "Recruiting activity can indicate repetitive screening and scheduling work."), "booking": (6, "Booking workflows may be improved with automation."), "appointment": (6, "Appointment workflows may be improved with automation."), "inventory": (6, "Inventory work can create monitoring and reporting opportunities."), "reporting": (6, "Reporting work can often be automated or streamlined."), "integration": (8, "Integration language suggests disconnected systems."), "multiple systems": (9, "Multiple systems suggest integration or workflow opportunities."), "api": (5, "API activity may indicate a system that can be connected or automated."), "24/7": (6, "24/7 service can create scheduling, routing, and after-hours workflow needs."), "after hours": (7, "After-hours service can create missed-call and dispatch opportunities."), "emergency": (6, "Emergency service creates time-sensitive routing and communication needs."), "same day": (6, "Same-day service creates scheduling and dispatch pressure."), "estimate": (6, "Estimate workflows can be streamlined with qualification and follow-up."), "quote": (5, "Quote activity can create follow-up and conversion opportunities."), "dispatch": (9, "Dispatch activity suggests routing and scheduling complexity."), "field service": (8, "Field-service operations often involve coordination and data handoffs."), "job management": (7, "Job-management activity can expose workflow and integration opportunities."), "maintenance plan": (7, "Maintenance plans can benefit from recurring reminders and retention workflows."), "membership": (6, "Membership programs can create renewal and retention automation opportunities."), "financing": (5, "Financing offers can create qualification and follow-up workflow needs."), "reviews": (4, "Review volume can indicate reputation-management and response workload."), "service area": (5, "A broad service area can increase routing and scheduling complexity."), "fleet": (6, "Fleet operations can create monitoring and coordination needs."), "technicians": (6, "A technician workforce creates scheduling and field-operations needs."), "seasonal": (6, "Seasonality can create forecasting, staffing, and demand-management pressure."), "peak season": (7, "Peak-season language suggests temporary capacity and scheduling pressure."), "missed call": (9, "Missed calls can represent lost revenue and follow-up opportunities."), "call volume": (7, "High call volume can create triage and response-time pressure."),
@@ -52,7 +52,8 @@ class Lead:
 def fetch(url: str, timeout: int = 12) -> str:
     req = Request(url, headers={"User-Agent": UA, "Accept-Language": "en-US,en;q=0.8"})
     with urlopen(req, timeout=timeout) as r:
-        raw = r.read(500_000); charset = r.headers.get_content_charset() or "utf-8"
+        raw = r.read(500_000)
+        charset = r.headers.get_content_charset() or "utf-8"
         return raw.decode(charset, errors="replace")
 
 
@@ -61,17 +62,47 @@ def clean_text(raw: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(re.sub(r"(?s)<[^>]+>", " ", raw))).strip()
 
 
-def search_web(query: str, limit: int = 8) -> list[dict[str, str]]:
-    text = fetch("https://html.duckduckgo.com/html/?q=" + quote_plus(query)); results = []
+def _decode_result_url(url: str) -> str:
+    if url.startswith("//"):
+        url = "https:" + url
+    match = re.search(r"[?&](?:uddg|u)=([^&]+)", url)
+    return unquote(match.group(1)) if match else html.unescape(url)
+
+
+def _search_duckduckgo(query: str, limit: int) -> list[dict[str, str]]:
+    text = fetch("https://html.duckduckgo.com/html/?q=" + quote_plus(query))
     pattern = re.compile(r'(?s)<a[^>]+class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>')
-    for href, title_html in pattern.findall(text):
-        if href.startswith("//"): href = "https:" + href
-        results.append({"title": clean_text(title_html), "url": html.unescape(href)})
-        if len(results) >= limit: break
+    return [{"title": clean_text(title), "url": _decode_result_url(href), "source": "DuckDuckGo"}
+            for href, title in pattern.findall(text)[:limit]]
+
+
+def _search_bing(query: str, limit: int) -> list[dict[str, str]]:
+    text = fetch("https://www.bing.com/search?q=" + quote_plus(query) + "&count=" + str(limit))
+    pattern = re.compile(r'(?is)<li class="b_algo".*?<h2><a[^>]+href="([^"]+)"[^>]*>(.*?)</a>')
+    return [{"title": clean_text(title), "url": _decode_result_url(href), "source": "Bing"}
+            for href, title in pattern.findall(text)[:limit]]
+
+
+def search_web(query: str, limit: int = 8) -> list[dict[str, str]]:
+    """Search multiple public engines without requiring an API key.
+
+    Provider failures are isolated so one blocked/limited search engine does
+    not make the whole research run fail.
+    """
+    results: list[dict[str, str]] = []
+    for provider in (_search_duckduckgo, _search_bing):
+        try:
+            results.extend(provider(query, limit))
+        except Exception as exc:
+            print(f"Search provider {provider.__name__} failed: {exc}", file=sys.stderr)
+    unique: dict[str, dict[str, str]] = {}
     for item in results:
-        m = re.search(r"uddg=([^&]+)", item["url"])
-        if m: item["url"] = unquote(m.group(1))
-    return results
+        url = item["url"]
+        if url and url not in unique:
+            unique[url] = item
+        if len(unique) >= limit * 2:
+            break
+    return list(unique.values())
 
 
 def root_name(url: str) -> str:
@@ -99,7 +130,7 @@ def research_target(target: str, max_results: int = 8, delay: float = 1.0) -> li
             url, host = result["url"], root_name(result["url"])
             if not host or host in {"duckduckgo.com", "google.com", "bing.com", "youtube.com"}: continue
             lead = leads.setdefault(host, Lead(name=host, url=url, query=query, title=result["title"], contact_hint=urljoin(url, "/contact")))
-            if query != lead.query: lead.source_count += 1
+            if url != lead.url: lead.source_count += 1
             try:
                 page = clean_text(fetch(url)); score, signals, opps, evidence = analyze_text(page)
                 lead.score = max(lead.score, score)
