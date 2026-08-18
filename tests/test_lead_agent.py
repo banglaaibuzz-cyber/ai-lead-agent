@@ -1,7 +1,8 @@
 import unittest
+from unittest.mock import patch
 
 from src.entity import company_key, normalize_company_name
-from src.lead_agent import analyze_text, root_name
+from src.lead_agent import _decode_result_url, analyze_text, root_name, search_web
 from src.lead_matching import match_offers, rank_lead
 from src.outreach import draft_outreach
 
@@ -40,6 +41,22 @@ class LeadAgentTests(unittest.TestCase):
 
     def test_root_name(self):
         self.assertEqual(root_name("https://www.example.com/about"), "example.com")
+
+    def test_search_url_decoding(self):
+        self.assertEqual(_decode_result_url("https://duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpage"), "https://example.com/page")
+        self.assertEqual(_decode_result_url("https://example.com/page"), "https://example.com/page")
+
+    @patch("src.lead_agent._search_bing")
+    @patch("src.lead_agent._search_duckduckgo")
+    def test_multi_engine_search_deduplicates_urls(self, ddg, bing):
+        ddg.return_value = [{"title": "A", "url": "https://example.com", "source": "DuckDuckGo"}]
+        bing.return_value = [
+            {"title": "A", "url": "https://example.com", "source": "Bing"},
+            {"title": "B", "url": "https://other.example", "source": "Bing"},
+        ]
+        results = search_web("example", limit=3)
+        self.assertEqual([x["url"] for x in results], ["https://example.com", "https://other.example"])
+        self.assertEqual({x["source"] for x in results}, {"DuckDuckGo", "Bing"})
 
 
 if __name__ == "__main__":
