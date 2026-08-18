@@ -1,40 +1,6 @@
 <!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>AI Lead Agent</title>
-  <style>
-    body{font-family:system-ui,sans-serif;max-width:1100px;margin:40px auto;padding:0 18px;background:#f7f7f8;color:#171717}
-    h1{margin-bottom:6px}.muted{color:#666}.card{background:white;border:1px solid #ddd;border-radius:14px;padding:20px;margin:18px 0;box-shadow:0 2px 8px #00000008}
-    form{display:grid;grid-template-columns:1fr 1fr;gap:12px}input,select,button{font:inherit;padding:12px;border-radius:9px;border:1px solid #bbb}button{cursor:pointer;background:#171717;color:white;border-color:#171717;grid-column:1/-1}
-    .lead{border-top:1px solid #eee;padding:18px 0}.lead:first-child{border-top:0}.score{font-weight:700}.pill{display:inline-block;background:#eee;border-radius:999px;padding:4px 8px;margin:3px;font-size:13px}
-    .meta{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.badge{border:1px solid #ddd;border-radius:999px;padding:5px 9px;font-size:13px}.next{background:#f2f2f2;padding:10px;border-radius:9px}
-    a{color:inherit}.error{color:#b00020}.loading{opacity:.65}.hint{font-size:13px;color:#666;margin:4px 0 0}
-    @media(max-width:700px){form{grid-template-columns:1fr}}
-  </style>
-</head>
-<body>
-  <h1>AI Lead Agent</h1>
-  <p class="muted">Global B2B lead research: find explicit needs <strong>and</strong> less-obvious operational opportunities from public evidence.</p>
-  <div class="card">
-    <form id="form">
-      <div><label>Category</label><select id="category"><option>HVAC companies</option><option>Plumbing companies</option><option>Roofing companies</option><option>Electrical contractors</option><option>Home service businesses</option><option>Accounting firms</option><option>Dental practices</option><option>Ecommerce brands</option><option>SaaS companies</option><option>Other B2B businesses</option></select></div>
-      <div><label>Market</label><select id="market"><option>United States</option><option>United Kingdom</option><option>Canada</option><option>Australia</option><option>New Zealand</option><option>Germany</option><option>Netherlands</option><option>Worldwide</option></select></div>
-      <div><label>Location (optional)</label><input id="location" placeholder="e.g. Texas, Florida, London"></div>
-      <div><label>Research goal</label><input id="goal" value="find businesses with operational problems and automation opportunities"></div>
-      <button id="go">Research leads</button>
-    </form>
-    <p class="hint">The market is independent of your own location. Results are ranked conservatively: strong scores without enough evidence are not treated as top-priority leads.</p>
-    <p id="status" class="muted"></p>
-  </div>
-  <div id="results"></div>
-<script>
-const form=document.querySelector('#form'), status=document.querySelector('#status'), results=document.querySelector('#results');
-form.addEventListener('submit',async e=>{e.preventDefault();results.innerHTML='';status.textContent='Researching public pages and operational signals…';form.classList.add('loading');
-  try{const r=await fetch('/api/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:document.querySelector('#category').value,market:document.querySelector('#market').value,location:document.querySelector('#location').value,goal:document.querySelector('#goal').value,results:6})});const data=await r.json();if(!r.ok)throw Error(data.error||'Research failed');status.textContent=`Found ${data.length} candidate leads, ranked by evidence and opportunity.`;
-  results.innerHTML=data.map(l=>`<div class="card lead"><h2><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)}</a></h2><div class="score">Priority: ${l.priority}/100 · Opportunity score: ${l.score}/100</div><div class="meta"><span class="badge">Tier ${esc(l.tier)}</span><span class="badge">Evidence confidence: ${l.confidence}/100</span></div><p>${(l.opportunities||[]).map(x=>`<span class="pill">${esc(x)}</span>`).join('')}</p><strong>Why this lead matters</strong><ul>${(l.signals||[]).slice(0,5).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><strong>Evidence</strong><ul>${(l.evidence||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="next"><strong>Next action:</strong> ${esc(l.next_action)}</p><p class="muted">Contact hint: <a href="${esc(l.contact_hint)}" target="_blank" rel="noopener">${esc(l.contact_hint)}</a></p></div>`).join('');
-  }catch(err){status.innerHTML=`<span class="error">${esc(err.message)}</span>`}finally{form.classList.remove('loading')}});
-function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-</script>
-</body></html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI Lead Agent</title>
+<style>body{font-family:system-ui,sans-serif;max-width:1100px;margin:40px auto;padding:0 18px;background:#f7f7f8;color:#171717}h1{margin-bottom:6px}.muted{color:#666}.card{background:#fff;border:1px solid #ddd;border-radius:14px;padding:20px;margin:18px 0;box-shadow:0 2px 8px #00000008}form{display:grid;grid-template-columns:1fr 1fr;gap:12px}input,select,button{font:inherit;padding:12px;border-radius:9px;border:1px solid #bbb}button{cursor:pointer;background:#171717;color:#fff;border-color:#171717;grid-column:1/-1}.lead{border-top:1px solid #eee;padding:18px 0}.lead:first-child{border-top:0}.meta{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}.pill{display:inline-block;background:#eee;border-radius:999px;padding:4px 8px;font-size:13px}.priority{font-weight:800}.next{padding:10px;background:#f2f2f2;border-radius:8px}.error{color:#b00020}.loading{opacity:.65}@media(max-width:700px){form{grid-template-columns:1fr}}
+</style></head><body><h1>AI Lead Agent</h1><p class="muted">Global B2B research that finds explicit needs <strong>and</strong> non-obvious operational opportunities from public evidence.</p>
+<div class="card"><form id="form"><div><label>Category</label><select id="category"><option>HVAC companies</option><option>Plumbing companies</option><option>Roofing companies</option><option>Electrical contractors</option><option>Home service businesses</option><option>Accounting firms</option><option>Dental practices</option><option>Ecommerce brands</option><option>SaaS companies</option><option>Other B2B businesses</option></select></div><div><label>Market</label><select id="market"><option>United States</option><option>United Kingdom</option><option>Canada</option><option>Australia</option><option>New Zealand</option><option>Germany</option><option>Netherlands</option><option>Worldwide</option></select></div><div><label>Location (optional)</label><input id="location" placeholder="e.g. Texas, Florida, London"></div><div><label>Goal</label><input id="goal" value="find businesses with operational problems and automation opportunities"></div><button>Research leads</button></form><p class="muted" id="status"></p></div><div id="results"></div>
+<script>const f=document.querySelector('#form'),s=document.querySelector('#status'),r=document.querySelector('#results');f.addEventListener('submit',async e=>{e.preventDefault();r.innerHTML='';s.textContent='Researching public pages and signals…';f.classList.add('loading');try{const x=await fetch('/api/research',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({category:category.value,market:market.value,location:location.value,goal:goal.value,results:6})}),d=await x.json();if(!x.ok)throw Error(d.error||'Research failed');s.textContent=`Found ${d.length} candidates, ranked by priority and evidence confidence.`;r.innerHTML=d.map(l=>`<div class="card lead"><h2><a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)}</a></h2><div class="meta"><span class="pill priority">Priority ${esc(l.priority)}</span><span class="pill">Opportunity ${l.score}/100</span><span class="pill">Confidence ${l.confidence}%</span><span class="pill">Sources ${l.source_count}</span></div><div class="next"><strong>Next action:</strong> ${esc(l.next_action)}</div><h3>Matched service opportunities</h3><ul>${(l.matched_offers||[]).map(o=>`<li><strong>${esc(o.offer)}</strong> — ${esc(o.why)}<br><small>Signals: ${esc((o.matched_signals||[]).join(', '))}</small></li>`).join('')}</ul><h3>Evidence</h3><ul>${(l.evidence||[]).slice(0,4).map(x=>`<li>${esc(x)}</li>`).join('')}</ul><p class="muted"><a href="${esc(l.contact_hint)}" target="_blank" rel="noopener">Review contact page</a></p></div>`).join('')}catch(e){s.innerHTML=`<span class="error">${esc(e.message)}</span>`}finally{f.classList.remove('loading')}});function esc(x){return String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}</script></body></html>
