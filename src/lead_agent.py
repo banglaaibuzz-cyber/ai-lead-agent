@@ -2,7 +2,9 @@
 """Zero-cost lead research agent.
 
 Uses public web search + website text extraction + transparent scoring.
-Optional Ollama support adds local LLM analysis without an API bill.
+It intentionally looks beyond obvious buying intent for operational and
+situational signals. Optional Ollama support adds local LLM analysis without
+an API bill.
 """
 from __future__ import annotations
 
@@ -19,8 +21,11 @@ from typing import Iterable
 from urllib.parse import quote_plus, urljoin, urlparse
 from urllib.request import Request, urlopen
 
-UA = "Mozilla/5.0 (compatible; AILeadAgent/0.1; +https://github.com/banglaaibuzz-cyber/ai-lead-agent)"
+UA = "Mozilla/5.0 (compatible; AILeadAgent/0.2; +https://github.com/banglaaibuzz-cyber/ai-lead-agent)"
 
+# These are deliberately broader than conventional "looking to buy" signals.
+# They describe situations that can create an opportunity even when the
+# business never publicly says that it wants software or automation.
 PAIN_SIGNALS = {
     "hiring": (8, "Hiring activity can indicate capacity or process pressure."),
     "manual": (9, "Manual work suggests an automation opportunity."),
@@ -30,6 +35,7 @@ PAIN_SIGNALS = {
     "growth": (7, "Growth can create new process, reporting, or automation needs."),
     "expanding": (8, "Expansion often creates repeatable operational problems."),
     "new location": (7, "New locations create setup and coordination work."),
+    "multiple locations": (8, "Multiple locations can create coordination and reporting complexity."),
     "customer support": (8, "Support volume can create automation and knowledge-base opportunities."),
     "lead generation": (7, "Lead-generation activity can create qualification and follow-up opportunities."),
     "recruiting": (7, "Recruiting activity can indicate repetitive screening and scheduling work."),
@@ -40,6 +46,26 @@ PAIN_SIGNALS = {
     "integration": (8, "Integration language suggests disconnected systems."),
     "multiple systems": (9, "Multiple systems suggest integration or workflow opportunities."),
     "api": (5, "API activity may indicate a system that can be connected or automated."),
+    "24/7": (6, "24/7 service can create scheduling, routing, and after-hours workflow needs."),
+    "after hours": (7, "After-hours service can create missed-call and dispatch opportunities."),
+    "emergency": (6, "Emergency service creates time-sensitive routing and communication needs."),
+    "same day": (6, "Same-day service creates scheduling and dispatch pressure."),
+    "estimate": (6, "Estimate workflows can be streamlined with qualification and follow-up."),
+    "quote": (5, "Quote activity can create follow-up and conversion opportunities."),
+    "dispatch": (9, "Dispatch activity suggests routing and scheduling complexity."),
+    "field service": (8, "Field-service operations often involve coordination and data handoffs."),
+    "job management": (7, "Job-management activity can expose workflow and integration opportunities."),
+    "maintenance plan": (7, "Maintenance plans can benefit from recurring reminders and retention workflows."),
+    "membership": (6, "Membership programs can create renewal and retention automation opportunities."),
+    "financing": (5, "Financing offers can create qualification and follow-up workflow needs."),
+    "reviews": (4, "Review volume can indicate reputation-management and response workload."),
+    "service area": (5, "A broad service area can increase routing and scheduling complexity."),
+    "fleet": (6, "Fleet operations can create monitoring and coordination needs."),
+    "technicians": (6, "A technician workforce creates scheduling and field-operations needs."),
+    "seasonal": (6, "Seasonality can create forecasting, staffing, and demand-management pressure."),
+    "peak season": (7, "Peak-season language suggests temporary capacity and scheduling pressure."),
+    "missed call": (9, "Missed calls can represent lost revenue and follow-up opportunities."),
+    "call volume": (7, "High call volume can create triage and response-time pressure."),
 }
 
 OFFER_MAP = {
@@ -57,7 +83,29 @@ OFFER_MAP = {
     "inventory": "inventory monitoring/reporting automation",
     "growth": "operations automation and reporting",
     "expanding": "operations automation for scale",
+    "multiple locations": "multi-location operations/reporting automation",
+    "24/7": "after-hours intake and routing automation",
+    "after hours": "missed-call capture and follow-up automation",
+    "emergency": "urgent lead triage and dispatch workflow automation",
+    "same day": "scheduling and dispatch automation",
+    "estimate": "estimate intake and follow-up automation",
+    "quote": "quote follow-up and conversion automation",
+    "dispatch": "dispatch, routing, and scheduling automation",
+    "field service": "field-service workflow and data synchronization",
+    "job management": "job-management workflow integration",
+    "maintenance plan": "maintenance reminder and retention automation",
+    "membership": "membership renewal and retention automation",
+    "financing": "financing-lead qualification and follow-up automation",
+    "reviews": "review monitoring and response workflow",
+    "service area": "service-area routing and scheduling automation",
+    "fleet": "fleet monitoring and operations reporting",
+    "technicians": "technician scheduling and field operations automation",
+    "seasonal": "seasonal demand forecasting and staffing workflow",
+    "peak season": "peak-season intake, scheduling, and capacity automation",
+    "missed call": "missed-call capture and instant follow-up automation",
+    "call volume": "call triage and response automation",
 }
+
 
 @dataclass
 class Lead:
@@ -100,7 +148,6 @@ def search_web(query: str, limit: int = 8) -> list[dict[str, str]]:
         results.append({"title": title, "url": html.unescape(href)})
         if len(results) >= limit:
             break
-    # DDG sometimes wraps URLs in redirect links. Extract the actual URL when possible.
     for item in results:
         m = re.search(r"uddg=([^&]+)", item["url"])
         if m:
@@ -127,11 +174,10 @@ def analyze_text(text: str) -> tuple[int, list[str], list[str], list[str]]:
             if offer and offer not in seen_offers:
                 opportunities.append(offer)
                 seen_offers.add(offer)
-            # Capture a short evidence window for human review.
             idx = low.find(phrase)
             start = max(0, idx - 100)
             evidence.append(text[start:min(len(text), idx + len(phrase) + 180)])
-    return min(score, 100), signals[:10], opportunities[:6], evidence[:8]
+    return min(score, 100), signals[:12], opportunities[:8], evidence[:10]
 
 
 def contact_hint(url: str, text: str) -> str:
@@ -146,8 +192,12 @@ def research_target(target: str, max_results: int = 8, delay: float = 1.0) -> li
     queries = [
         f'"{target}" hiring OR recruiting OR careers',
         f'"{target}" manual OR spreadsheet OR automation OR integration',
-        f'"{target}" growth OR expanding OR "new location"',
-        f'"{target}" "customer support" OR "lead generation" OR booking',
+        f'"{target}" growth OR expanding OR "new location" OR "multiple locations"',
+        f'"{target}" "customer support" OR "lead generation" OR booking OR appointment',
+        f'"{target}" dispatch OR "field service" OR technicians OR "job management"',
+        f'"{target}" "after hours" OR emergency OR "same day" OR "missed call"',
+        f'"{target}" estimate OR quote OR "maintenance plan" OR membership OR financing',
+        f'"{target}" seasonal OR "peak season" OR "call volume" OR fleet',
     ]
     leads: dict[str, Lead] = {}
     for query in queries:
@@ -168,11 +218,14 @@ def research_target(target: str, max_results: int = 8, delay: float = 1.0) -> li
                 score, signals, opps, evidence = analyze_text(page)
                 lead.score = max(lead.score, score)
                 for x in signals:
-                    if x not in lead.signals: lead.signals.append(x)
+                    if x not in lead.signals:
+                        lead.signals.append(x)
                 for x in opps:
-                    if x not in lead.opportunities: lead.opportunities.append(x)
+                    if x not in lead.opportunities:
+                        lead.opportunities.append(x)
                 for x in evidence:
-                    if x not in lead.evidence: lead.evidence.append(x)
+                    if x not in lead.evidence:
+                        lead.evidence.append(x)
                 lead.contact_hint = contact_hint(url, page)
             except Exception as exc:
                 lead.evidence.append(f"Could not fetch page: {exc}")
@@ -209,16 +262,18 @@ def save_csv(leads: Iterable[Lead], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fields = ["name", "url", "title", "score", "opportunities", "signals", "evidence", "contact_hint", "query"]
     with path.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields); w.writeheader()
+        w = csv.DictWriter(f, fieldnames=fields)
+        w.writeheader()
         for lead in leads:
             row = asdict(lead)
-            for k in ("opportunities", "signals", "evidence"): row[k] = " | ".join(row[k])
+            for k in ("opportunities", "signals", "evidence"):
+                row[k] = " | ".join(row[k])
             w.writerow({k: row[k] for k in fields})
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description="Zero-cost web lead research agent")
-    p.add_argument("target", nargs="+", help="industry, niche, location, or company type to research")
+    p = argparse.ArgumentParser(description="Zero-cost global B2B lead research agent")
+    p.add_argument("target", nargs="+", help="industry, niche, market, location, or company type to research")
     p.add_argument("--results", type=int, default=6, help="search results per query")
     p.add_argument("--delay", type=float, default=1.0, help="seconds between page requests")
     p.add_argument("--ollama", action="store_true", help="try local Ollama for deeper analysis")
@@ -229,11 +284,14 @@ def main() -> None:
     for target in args.target:
         print(f"Researching: {target}")
         leads.extend(research_target(target, args.results, args.delay))
-    if args.ollama: ollama_enrich(leads, args.model)
-    save_json(leads, Path(args.out + ".json")); save_csv(leads, Path(args.out + ".csv"))
+    if args.ollama:
+        ollama_enrich(leads, args.model)
+    save_json(leads, Path(args.out + ".json"))
+    save_csv(leads, Path(args.out + ".csv"))
     for i, lead in enumerate(leads[:20], 1):
         print(f"{i:>2}. {lead.name:<35} score={lead.score:>3}  {lead.opportunities[0] if lead.opportunities else 'review manually'}")
     print(f"\nSaved {len(leads)} leads to {args.out}.json and {args.out}.csv")
+
 
 if __name__ == "__main__":
     main()
