@@ -9,7 +9,6 @@ from urllib.parse import urlparse
 
 from src.lead_agent import research_target
 from src.outreach import draft_outreach
-from src.quality import assess
 
 ROOT = Path(__file__).resolve().parent
 INDEX = ROOT / "web" / "index.html"
@@ -58,13 +57,10 @@ class Handler(BaseHTTPRequestHandler):
             response = []
             for lead in leads:
                 item = dict(lead.__dict__)
-                quality = assess(score=lead.score, evidence=lead.evidence, opportunities=lead.opportunities, url=lead.url)
-                item["priority"] = quality.priority
-                item["confidence"] = quality.confidence
-                item["tier"] = quality.tier
-                item["next_action"] = quality.next_action
+                item["priority"] = lead.confidence if lead.priority == "A" else max(0, lead.confidence - 20 if lead.priority == "B" else lead.confidence - 40)
+                item["tier"] = lead.priority
                 response.append(item)
-            response.sort(key=lambda x: (x["priority"], x["score"]), reverse=True)
+            response.sort(key=lambda x: (x["priority"], x["confidence"], x["score"]), reverse=True)
             self._send(200, "application/json; charset=utf-8", json.dumps(response, ensure_ascii=False).encode())
         except Exception as exc:
             self._send(400, "application/json; charset=utf-8", json.dumps({"error": str(exc)}).encode())
