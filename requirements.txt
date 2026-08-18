@@ -1,0 +1,2 @@
+# MVP uses Python standard library only.
+# Optional: install Ollama separately for local LLM enrichment.
