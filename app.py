@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from src.lead_agent import research_target
+from src.outreach import draft_outreach
 from src.quality import assess
 
 ROOT = Path(__file__).resolve().parent
@@ -34,12 +35,17 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, "text/plain; charset=utf-8", b"Not found")
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/api/research":
+        if self.path not in {"/api/research", "/api/draft"}:
             self._send(404, "application/json", b'{"error":"Not found"}')
             return
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length) or b"{}")
+            if self.path == "/api/draft":
+                result = draft_outreach(payload.get("lead", {}), payload.get("offer"))
+                self._send(200, "application/json; charset=utf-8", json.dumps(result).encode())
+                return
+
             category = str(payload.get("category", "HVAC companies")).strip()
             market = str(payload.get("market", "United States")).strip()
             location = str(payload.get("location", "")).strip()
@@ -52,23 +58,16 @@ class Handler(BaseHTTPRequestHandler):
             response = []
             for lead in leads:
                 item = dict(lead.__dict__)
-                quality = assess(
-                    score=lead.score,
-                    evidence=lead.evidence,
-                    opportunities=lead.opportunities,
-                    url=lead.url,
-                )
+                quality = assess(score=lead.score, evidence=lead.evidence, opportunities=lead.opportunities, url=lead.url)
                 item["priority"] = quality.priority
                 item["confidence"] = quality.confidence
                 item["tier"] = quality.tier
                 item["next_action"] = quality.next_action
                 response.append(item)
             response.sort(key=lambda x: (x["priority"], x["score"]), reverse=True)
-            body = json.dumps(response, ensure_ascii=False).encode()
-            self._send(200, "application/json; charset=utf-8", body)
+            self._send(200, "application/json; charset=utf-8", json.dumps(response, ensure_ascii=False).encode())
         except Exception as exc:
-            body = json.dumps({"error": str(exc)}).encode()
-            self._send(400, "application/json; charset=utf-8", body)
+            self._send(400, "application/json; charset=utf-8", json.dumps({"error": str(exc)}).encode())
 
     def log_message(self, fmt: str, *args: object) -> None:
         print(fmt % args)
