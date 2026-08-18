@@ -2,6 +2,7 @@ import unittest
 
 from src.lead_agent import analyze_text, root_name
 from src.lead_matching import match_offers, rank_lead
+from src.outreach import draft_outreach
 
 
 class LeadAgentTests(unittest.TestCase):
@@ -25,6 +26,12 @@ class LeadAgentTests(unittest.TestCase):
         self.assertEqual(rank_lead(80, 1, 1)[0], "C")
         self.assertEqual(rank_lead(80, 8, 8)[0], "A")
         self.assertEqual(rank_lead(50, 5, 5)[0], "B")
+
+    def test_outreach_uses_evidence_and_does_not_send(self):
+        draft = draft_outreach({"name": "Example Co", "evidence": ["They offer 24/7 service."], "opportunities": ["after-hours intake automation"]})
+        self.assertIn("24/7 service", draft["body"])
+        self.assertIn("after-hours intake automation", draft["body"])
+        self.assertIn("Example Co", draft["subject"])
 
     def test_root_name(self):
         self.assertEqual(root_name("https://www.example.com/about"), "example.com")
